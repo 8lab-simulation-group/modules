@@ -265,7 +265,7 @@ ModuleSpardyn::ModuleSpardyn(
 	// calculate coefficient
 	CmCoef  = 0.25 * cm * waterDen * pi * diameter * diameter * length;
 	CaCoef  = 0.25 * ca * waterDen * pi * diameter * diameter * length;
-	CdCoef  = 0.50 * cd * waterDen      * diameter            * length;
+	CdCoef  = 0.50 * cd * waterDen * pi * diameter            * length;
 	Buoency = 0.25 *      waterDen * pi * diameter * diameter * length * gravity;	
 
 	// get surface information if needed.
