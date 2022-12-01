@@ -569,20 +569,16 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		// d(e3)/dg
 		const Mat3x3 de3_dg = (Mat3x3(MatCross, e3_ref))*(-1.0);
 
-		// jacobian of buoency force
+		// jacobian of normal component of buoency force
 		const Vec3 F_bn = e3.Cross(Vec3(0.,0.,Buoency).Cross(e3));
 		const Mat3x3 Fbn_tild = Mat3x3(MatCross, F_bn);
+		const Mat3x3 B_tild = Mat3x3(MatCross, Vec3(0.,0.,Buoency) );
 
 		const Mat3x3 dFbn_dx = MultV1V2T( F_bn , dCsub_dx );
 		const Mat3x3 dMbn_dx = rGB_tild * dFbn_dx - Fbn_tild * drGB_dx;
-		const Mat3x3 dFbv_dx = MultV1V2T( e3 , Vec3(0.,0.,1.) ) * (area * norm * waterDensity * gravity);
 
-
-		const Mat3x3 Fb_tild = Mat3x3(MatCross, Vec3(0.,0.,Buoency)*(SubCoef));
-
-		const Mat3x3 dFb_dx = MultV1V2T( Vec3(0.,0.,Buoency), dCsub_dx);
-		const Mat3x3 dMb_dx = (rGB_tild * dFb_dx) - (Fb_tild * drGB_dx);
-		const Mat3x3 dMb_dg =                     - (Fb_tild * drGB_dg);
+		const Mat3x3 dFbn_dg = ( e3_tild * B_tild - Mat3x3(MatCross, Vec3(0.,0.,Buoency).Cross(e3)) ) * de3_dg * (SubCoef);
+		const Mat3x3 dMbn_dg = rGB_tild * dFbn_dg - Fbn_tild * drGB_dx;
 
 		// jacobian of morison addmass force
 		const Mat3x3 Fna_tild = Mat3x3(MatCross, (vP_N*(-1.0*CaCoef*SubCoef)));
@@ -624,6 +620,9 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		Mat3x3 dFvd_dg = Zero3x3;
 		Mat3x3 dFvd_dv = Zero3x3;
 
+		Mat3x3 dFbv_dx = Zero3x3;
+		Mat3x3 dFbv_dg = Zero3x3;
+
 		if(bHaveSurface) {
 			if(zeta > x_S.dGet(3)) {
 				// jacobian of virtical morison addmass force
@@ -642,18 +641,23 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 				const Mat3x3 dur_V_dv = -MultV1V2T(e3,e3);
 				dFvd_dg = ( (urV_urVT*dur_V_dg)/urV_abs + dur_N_dg * urV_abs ) * (CdvCoef*SubCoef);
 				dFvd_dv = ( (urV_urVT*dur_V_dv)/urV_abs + dur_N_dv * urV_abs ) * (CdvCoef*SubCoef);
+
+				// jacobian of virtical component of buoency force
+				dFbv_dx = MultV1V2T( e3 , Vec3(0.,0.,1.) ) * (area * norm * waterDensity * gravity);
+				const Vec3 dzs_dg = drGB_dg.MulTV( Vec3(0.,0.,1.) );
+				dFbv_dg = ( MultV1V2T( e3, dzs_dg ) + de3_dg * x_S.dGet(3) ) * (area * norm * waterDensity * gravity);
 			}
 		}
 		//           horizona morison                  virtical morison             buoency
-		dF_dx  = ( (dFna_dx  + dFni_dx + dFnd_dx)                                  + dFb_dx )*dFSF;
-		dF_dg  = ( (dFna_dg  + dFni_dg + dFnd_dg) + (dFva_dg + dFvi_dg + dFvd_dg)           )*dFSF;
-		dF_dv  = (                       dFnd_dv                       + dFvd_dv            )*dFSF;
-		dF_dvP = (  dFna_dvP                      +  dFva_dvP                               )*dFSF;
+		dF_dx  = ( (dFna_dx  + dFni_dx + dFnd_dx)                                  + dFbn_dx + dFbv_dx)*dFSF;
+		dF_dg  = ( (dFna_dg  + dFni_dg + dFnd_dg) + (dFva_dg + dFvi_dg + dFvd_dg)  + dFbn_dg + dFbv_dg)*dFSF;
+		dF_dv  = (                       dFnd_dv                       + dFvd_dv                      )*dFSF;
+		dF_dvP = (  dFna_dvP                      +  dFva_dvP                                         )*dFSF;
 	
-		dM_dx  = ( (dMna_dx  + dMni_dx + dMnd_dx)                                  + dMb_dx )*dFSF;
-		dM_dg  = ( (dMna_dg  + dMni_dg + dMnd_dg)                                  + dMb_dg )*dFSF;
-		dM_dv  = (                       dMnd_dv                                            )*dFSF;
-		dM_dvP = (  dMna_dvP                                                                )*dFSF;
+		dM_dx  = ( (dMna_dx  + dMni_dx + dMnd_dx)                                  + dMbn_dx          )*dFSF;
+		dM_dg  = ( (dMna_dg  + dMni_dg + dMnd_dg)                                  + dMbn_dg          )*dFSF;
+		dM_dv  = (                       dMnd_dv                                                      )*dFSF;
+		dM_dvP = (  dMna_dvP                                                                          )*dFSF;
 
 
 	}	
