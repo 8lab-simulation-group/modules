@@ -147,7 +147,7 @@ private:
     doublereal          	CavCoef;
     doublereal          	CdvCoef;
 
-	doublereal              	waterDen;
+	doublereal              	waterDensity;
     doublereal              	gravity; 
 	const doublereal        	pi = M_PI;
 
@@ -160,7 +160,6 @@ private:
 	mutable std::ofstream       out;
 
 	IrragularWave				Wave;
-	double						y;
 
 	Mat3x3 dF_dx,  dF_dg,  dF_dv,  dF_dw,  dM_dx,  dM_dg,  dM_dv,  dM_dw;
 	Mat3x3 dF_dxP, dF_dgP, dF_dvP, dF_dwP, dM_dxP, dM_dgP, dM_dvP, dM_dwP;
@@ -254,7 +253,7 @@ ModuleSpardyn::ModuleSpardyn(
 		silent_cerr("spardyn(" << GetLabel() << "): keyword \"rho\" expected at line " << HP.GetLineData() << std::endl);
 		throw ErrGeneric(MBDYN_EXCEPT_ARGS);
 	}
-	waterDen = HP.GetReal();
+	waterDensity = HP.GetReal();
 
 	// get g
 	if (!HP.IsKeyWord("gravity")) {
@@ -264,10 +263,10 @@ ModuleSpardyn::ModuleSpardyn(
 	gravity = HP.GetReal();
 	
 	// calculate coefficient
-	CmCoef  = 0.25 * cm * waterDen * pi * diameter * diameter * length;
-	CaCoef  = 0.25 * ca * waterDen * pi * diameter * diameter * length;
-	CdCoef  = 0.50 * cd * waterDen * pi * diameter            * length;
-	Buoency = 0.25 * diameter * diameter * pi * length * waterDen * gravity;	
+	CmCoef  = 0.25 * cm * waterDensity * pi * diameter * diameter * length;
+	CaCoef  = 0.25 * ca * waterDensity * pi * diameter * diameter * length;
+	CdCoef  = 0.50 * cd * waterDensity * pi * diameter            * length;
+	Buoency = 0.25 * diameter * diameter * pi * length * waterDensity * gravity;	
 
 	// get surface information if needed.
 	if (HP.IsKeyWord("surface")) { 
@@ -315,8 +314,8 @@ ModuleSpardyn::ModuleSpardyn(
 		norm = HP.GetReal();
 
 		//calculate coefficients 
-        CavCoef =     cav *waterDen * volume;
-        CdvCoef = 0.5*cdv *waterDen * area;
+        CavCoef =     cav *waterDensity * volume;
+        CdvCoef = 0.5*cdv *waterDensity * area;
 	}
 
 	// getting Force scale factor if needed.
@@ -479,11 +478,12 @@ ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 		const Vec3 Fn  =( (-vP_N * CaCoef) + (uP_N * CmCoef) + (ur_N * (ur_N.Norm() * CdCoef) ) )*(dFSF*SubCoef);
 		const Vec3 Mn  = r_GB.Cross(Fn);
 
-		const Vec3 Fb = Vec3(0.,0.,Buoency)*(dFSF*SubCoef);
-		const Vec3 Mb = r_GB.Cross(Fb);
+		Vec3	B(0.,0.,Buoency*SubCoef);
+		Vec3	F_bn = e3.Cross(B.Cross(e3));
+		const Vec3 M_bn = r_GB.Cross(F_bn);
 
 		Vec3 Fv = Zero3;
-		
+		Vec3 F_bv = Zero3;
 		if (bHaveSurface) {
 			const Vec3 r_GS = R * Vec3( 0., 0., offset_GS );
 			x_S = x + r_GS;
@@ -502,11 +502,12 @@ ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 
 				Fv = -e3 * (norm * p_w * area) - vPS_V * CavCoef + urS_V * ( urS_V.Norm() * CdvCoef); 
 				Fv *= dFSF;
+				F_bv = e3 * (norm *(area * waterDensity * gravity * x_S.dGet(3)));
 			}
 		}
 
-		Force = Fn + Fv + Fb;
-		Moment = Mn + Mb;
+		Force = Fn + Fv + F_bn + F_bv;
+		Moment = Mn + M_bn;
 
 	}
 }
