@@ -570,6 +570,14 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		const Mat3x3 de3_dg = (Mat3x3(MatCross, e3_ref))*(-1.0);
 
 		// jacobian of buoency force
+		const Vec3 F_bn = e3.Cross(Vec3(0.,0.,Buoency).Cross(e3));
+		const Mat3x3 Fbn_tild = Mat3x3(MatCross, F_bn);
+
+		const Mat3x3 dFbn_dx = MultV1V2T( F_bn , dCsub_dx );
+		const Mat3x3 dMbn_dx = rGB_tild * dFbn_dx - Fbn_tild * drGB_dx;
+		const Mat3x3 dFbv_dx = MultV1V2T( e3 , Vec3(0.,0.,1.) ) * (area * norm * waterDensity * gravity);
+
+
 		const Mat3x3 Fb_tild = Mat3x3(MatCross, Vec3(0.,0.,Buoency)*(SubCoef));
 
 		const Mat3x3 dFb_dx = MultV1V2T( Vec3(0.,0.,Buoency), dCsub_dx);
