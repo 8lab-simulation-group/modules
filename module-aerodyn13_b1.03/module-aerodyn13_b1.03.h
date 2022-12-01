@@ -62,7 +62,7 @@ private:
 						// constant in the node's reference frame
 		Mat3x3		Ra;	// aerodynamic orientation of the aero point
 						// wrt./ the node
-
+		double 		x;
 		doublereal	dBuiltInTwist;
 
 		Vec3		F;	// Force acting on Node
