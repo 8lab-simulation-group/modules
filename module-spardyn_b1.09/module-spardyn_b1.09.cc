@@ -479,12 +479,8 @@ ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 			}
 		}
 	
-		Force =  (F_bn + F_bv)*dFSF;
-		Moment =  M_bn * dFSF;
-		/*
-		Force = Fn + Fv + F_bn + F_bv;
-		Moment = Mn + M_bn;
-		*/
+		Force  = (F_n + F_v + F_bn + F_bv)*dFSF;
+		Moment = (M_n + M_bn ) * dFSF;
 	}
 }
 
@@ -541,9 +537,9 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 			SubCoef = 1.0;
 			dCsub_dx = Zero3;
 		} else {
+			const Vec3 dzeta_dx = Wave.get_dzeta_dx();
 			SubCoef = (zeta - (x.dGet(3)-length/2.0) )/length;
-			// Csub = (zeta - (z-l/2))/l
-			dCsub_dx = - Vec3(0.,0., 1.)/length;
+			dCsub_dx = dzeta_dx - Vec3(0.,0., 1./length);
 		}
 
 		// the vector r_GB and Jacobians 
@@ -631,7 +627,7 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 				const Vec3 uPS = Wave.get_acceleration();
 				const Vec3 uPS_V = e3 * ( uP.Dot(e3) );
 				const Vec3 vPS_V = e3 * ( vP_S.Dot(e3) );
-								
+
 				// jacobian of virtical morison addmass force
 				dFva_dg = ( MultV1V2T(e3, vP) * de3_dg  +  de3_dg *( e3.Dot(vP) ) ) * (-1.0*CaCoef);
 				dFva_dvP = MultV1V2T(e3, e3)*(-1.0*CavCoef);
@@ -656,17 +652,6 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 			}
 		}
 		//           horizona morison                  virtical morison             buoency
-
-		dF_dx  = (  dFbn_dx + dFbv_dx)*dFSF;
-		dF_dg  = (  dFbn_dg + dFbv_dg)*dFSF;
-		//dF_dv  = (                   )*dFSF;
-		//dF_dvP = (                   )*dFSF;
-	
-		dM_dx  = (   dMbn_dx          )*dFSF;
-		dM_dg  = (   dMbn_dg          )*dFSF;
-		//dM_dv  = (                    )*dFSF;
-		//dM_dvP = (                    )*dFSF;
-		/*
 		dF_dx  = ( (dFna_dx  + dFni_dx + dFnd_dx)                                  + dFbn_dx + dFbv_dx)*dFSF;
 		dF_dg  = ( (dFna_dg  + dFni_dg + dFnd_dg) + (dFva_dg + dFvi_dg + dFvd_dg)  + dFbn_dg + dFbv_dg)*dFSF;
 		dF_dv  = (                       dFnd_dv                       + dFvd_dv                      )*dFSF;
@@ -676,7 +661,6 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		dM_dg  = ( (dMna_dg  + dMni_dg + dMnd_dg)                                  + dMbn_dg          )*dFSF;
 		dM_dv  = (                       dMnd_dv                                                      )*dFSF;
 		dM_dvP = (  dMna_dvP                                                                          )*dFSF;
-		*/
 	}	
 }
 SubVectorHandler& 
