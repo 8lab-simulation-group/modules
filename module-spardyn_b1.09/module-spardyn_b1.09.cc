@@ -112,19 +112,6 @@ private:
 	doublereal          	Buoency;		// buoency
 	doublereal				SubCoef;		// percentage submerged of spar
 
-	Vec3					r_GB;
-	Vec3					ur;				// Relative velocity of node and water particle
-	Vec3					uP;				// Translational acceleration of water particle
-	Vec3					vP_N;	
-	Vec3					ur_N;			// orthogonal component of floating body axis of ur
-	Vec3					uP_N;			// orthogonal component of floating body axis of uP
-	doublereal				zeta;			// current sea level
-	
-	// jacobians
-	Vec3					dzeta_dx;
-	Mat3x3					du_dx;
-	Mat3x3					duP_dx;
-
     Vec3                    Force;
     Vec3                    Moment;       
 
@@ -133,16 +120,6 @@ private:
     doublereal          	area;
     doublereal          	volume;
     doublereal          	norm;
-
-	Vec3					x_S;
-	Vec3					v_S;
-	Vec3					vP_S;
-
-	Vec3					urS;
-	Vec3					urS_V;
-	Vec3					uPS;
-	Vec3					uPS_V;
-	doublereal				p_w;
 	
     doublereal          	CavCoef;
     doublereal          	CdvCoef;
@@ -429,6 +406,7 @@ ModuleSpardyn::WorkSpaceDim(integer* piNumRows, integer* piNumCols) const
 }
 
 // calculate morison equation
+// Note : Rotation matrix  v_global = R * V_local
 void 
 ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 {
@@ -452,8 +430,7 @@ ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 	SubCoef = 0.0;
 
 	Wave.calc_uvw(CurrTime, x);
-	zeta = Wave.get_water_elevation();
-
+	const doublereal zeta = Wave.get_water_elevation();
 	if(zeta > (x.dGet(3) - length/2.0) ) {
 
 		if(zeta > (x.dGet(3) + length/2.0)) {
@@ -462,53 +439,52 @@ ModuleSpardyn::CalcForce( const Vec3& vP, const Vec3& wP)
 			SubCoef = (zeta - (x.dGet(3)-length/2.0) )/length;
 		}
 
-		r_GB = R * Vec3(0., 0., 0.5*(SubCoef-1.0)*length );
+		const Vec3 r_GB = R * Vec3(0., 0., 0.5*(SubCoef-1.0)*length );
 
-		ur    = Wave.get_velocity() - v;
-		ur_N  = e3.Cross(ur.Cross(e3));
-		uP    = Wave.get_acceleration();
-		uP_N  = e3.Cross(uP.Cross(e3));
+		const Vec3 ur    = Wave.get_velocity() - v;
+		const Vec3 ur_N  = e3.Cross(ur.Cross(e3));
+		const Vec3 uP    = Wave.get_acceleration();
+		const Vec3 uP_N  = e3.Cross(uP.Cross(e3));
 
-		dzeta_dx = Wave.get_dzeta_dx();
-		du_dx    = Wave.get_du_dx();
-		duP_dx   = Wave.get_duP_dx();
+		const Vec3 vP_N = e3.Cross(vP.Cross(e3));
 
-		vP_N = e3.Cross(vP.Cross(e3));
-
-		const Vec3 Fn  =( (-vP_N * CaCoef) + (uP_N * CmCoef) + (ur_N * (ur_N.Norm() * CdCoef) ) )*(dFSF*SubCoef);
-		const Vec3 Mn  = r_GB.Cross(Fn);
+		const Vec3 F_n  =( (-vP_N * CaCoef) + (uP_N * CmCoef) + (ur_N * (ur_N.Norm() * CdCoef) ) )*SubCoef;
+		const Vec3 M_n  = r_GB.Cross(F_n);
 
 		Vec3	B(0.,0.,Buoency*SubCoef);
 		Vec3	F_bn = e3.Cross(B.Cross(e3));
 		const Vec3 M_bn = r_GB.Cross(F_bn);
 
-		Vec3 Fv = Zero3;
+		Vec3 F_v = Zero3;
 		Vec3 F_bv = Zero3;
+
 		if (bHaveSurface) {
 			const Vec3 r_GS = R * Vec3( 0., 0., offset_GS );
-			x_S = x + r_GS;
-			v_S = v + w.Cross(r_GS);
-			vP_S = vP + wP.Cross(r_GS) + w.Cross(w.Cross(r_GS));
+			const Vec3 x_S = x + r_GS;
+			const Vec3 v_S = v + w.Cross(r_GS);
+			const Vec3 vP_S = vP + wP.Cross(r_GS) + w.Cross(w.Cross(r_GS));
 
 			if(zeta > x_S.dGet(3)) {
 				Wave.calc_uvw(CurrTime,x_S);
-				p_w = Wave.get_dynamic_pressure();
+				const doublereal p_w = Wave.get_dynamic_pressure();
 
-				urS = Wave.get_velocity() - v_S;
-				urS_V = e3 * ( ur.Dot(e3) );
-				uPS = Wave.get_acceleration();
-				uPS_V = e3 * ( uP.Dot(e3) );
+				const Vec3 urS = Wave.get_velocity() - v_S;
+				const Vec3 urS_V = e3 * ( ur.Dot(e3) );
+				const Vec3 uPS = Wave.get_acceleration();
+				const Vec3 uPS_V = e3 * ( uP.Dot(e3) );
 				const Vec3 vPS_V = e3 * ( vP_S.Dot(e3) );
 
-				Fv = -e3 * (norm * p_w * area) - vPS_V * CavCoef + urS_V * ( urS_V.Norm() * CdvCoef); 
-				Fv *= dFSF;
+				F_v = -e3 * (norm * p_w * area) - vPS_V * CavCoef + urS_V * ( urS_V.Norm() * CdvCoef); 
 				F_bv = e3 * (norm *(area * waterDensity * gravity * x_S.dGet(3)));
 			}
 		}
-
+	
+		Force =  (F_bn + F_bv)*dFSF;
+		Moment =  M_bn * dFSF;
+		/*
 		Force = Fn + Fv + F_bn + F_bv;
 		Moment = Mn + M_bn;
-
+		*/
 	}
 }
 
@@ -546,25 +522,38 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 	dM_dvP = Zero3x3; 
 	dM_dwP = Zero3x3;
 
+	Wave.calc_uvw(CurrTime, x);
+	const doublereal zeta = Wave.get_water_elevation();
+
+	// check if bottom surface is under the water
 	if(zeta > (x.dGet(3) - length/2.0))
 	{
-		Vec3 	dCsub_dx;
-		Mat3x3 	drGB_dx, drGB_dg;
+		// calulate parameters 
+		const Vec3 ur    = Wave.get_velocity() - v;
+		const Vec3 ur_N  = e3.Cross(ur.Cross(e3));
+		const Vec3 uP    = Wave.get_acceleration();
+		const Vec3 uP_N  = e3.Cross(uP.Cross(e3));
+		const Vec3 vP_N = e3.Cross(vP.Cross(e3));
 
+		// jacobian of SubCoefficient		
+		Vec3 	dCsub_dx;
 		if(zeta > (x.dGet(3) + length/2.0)) {
+			SubCoef = 1.0;
 			dCsub_dx = Zero3;
-			drGB_dx =  Zero3x3;
-			drGB_dg =  Zero3x3;
 		} else {
+			SubCoef = (zeta - (x.dGet(3)-length/2.0) )/length;
 			// Csub = (zeta - (z-l/2))/l
 			dCsub_dx = - Vec3(0.,0., 1.)/length;
-			// r_GB = R* (0.,0., 1/2*(Csub -1)l )
-			const Vec3 drGB_dCsub = R * Vec3(0., 0., 0.5*length);
-
-			drGB_dx = MultV1V2T(drGB_dCsub, dCsub_dx);
-			drGB_dg = -Mat3x3(MatCross, R_ref * Vec3( 0. , 0. , 0.5*(SubCoef-1.)*length ));
 		}
+
+		// the vector r_GB and Jacobians 
+		const Vec3 r_GB = R * Vec3(0., 0., 0.5*(SubCoef-1.0)*length );
+		const Vec3 drGB_dCsub = R * Vec3(0., 0., 0.5*length);
+		const Mat3x3 drGB_dx = MultV1V2T(drGB_dCsub, dCsub_dx);
+		const Mat3x3 drGB_dg = -Mat3x3(MatCross, R_ref * Vec3( 0. , 0. , 0.5*(SubCoef-1.)*length ));
 		const Mat3x3 rGB_tild = Mat3x3(MatCross, r_GB);
+
+		// jabobian and tild matrix of e3
 		const Mat3x3 e3_tild = Mat3x3(MatCross, e3);
 		// d(e3)/dg
 		const Mat3x3 de3_dg = (Mat3x3(MatCross, e3_ref))*(-1.0);
@@ -624,7 +613,25 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		Mat3x3 dFbv_dg = Zero3x3;
 
 		if(bHaveSurface) {
+
+			// calculate surface parameters
+			const Vec3 r_GS = R * Vec3( 0., 0., offset_GS );
+			const Vec3 x_S = x + r_GS;
+			const Vec3 v_S = v + w.Cross(r_GS);
+			const Vec3 vP_S = vP + wP.Cross(r_GS) + w.Cross(w.Cross(r_GS));
+
+			// check if the surface is under the water
 			if(zeta > x_S.dGet(3)) {
+
+				Wave.calc_uvw(CurrTime,x_S);
+				const doublereal p_w = Wave.get_dynamic_pressure();
+
+				const Vec3 urS = Wave.get_velocity() - v_S;
+				const Vec3 urS_V = e3 * ( ur.Dot(e3) );
+				const Vec3 uPS = Wave.get_acceleration();
+				const Vec3 uPS_V = e3 * ( uP.Dot(e3) );
+				const Vec3 vPS_V = e3 * ( vP_S.Dot(e3) );
+								
 				// jacobian of virtical morison addmass force
 				dFva_dg = ( MultV1V2T(e3, vP) * de3_dg  +  de3_dg *( e3.Dot(vP) ) ) * (-1.0*CaCoef);
 				dFva_dvP = MultV1V2T(e3, e3)*(-1.0*CavCoef);
@@ -649,6 +656,17 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 			}
 		}
 		//           horizona morison                  virtical morison             buoency
+
+		dF_dx  = (  dFbn_dx + dFbv_dx)*dFSF;
+		dF_dg  = (  dFbn_dg + dFbv_dg)*dFSF;
+		//dF_dv  = (                   )*dFSF;
+		//dF_dvP = (                   )*dFSF;
+	
+		dM_dx  = (   dMbn_dx          )*dFSF;
+		dM_dg  = (   dMbn_dg          )*dFSF;
+		//dM_dv  = (                    )*dFSF;
+		//dM_dvP = (                    )*dFSF;
+		/*
 		dF_dx  = ( (dFna_dx  + dFni_dx + dFnd_dx)                                  + dFbn_dx + dFbv_dx)*dFSF;
 		dF_dg  = ( (dFna_dg  + dFni_dg + dFnd_dg) + (dFva_dg + dFvi_dg + dFvd_dg)  + dFbn_dg + dFbv_dg)*dFSF;
 		dF_dv  = (                       dFnd_dv                       + dFvd_dv                      )*dFSF;
@@ -658,8 +676,7 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		dM_dg  = ( (dMna_dg  + dMni_dg + dMnd_dg)                                  + dMbn_dg          )*dFSF;
 		dM_dv  = (                       dMnd_dv                                                      )*dFSF;
 		dM_dvP = (  dMna_dvP                                                                          )*dFSF;
-
-
+		*/
 	}	
 }
 SubVectorHandler& 
@@ -805,6 +822,7 @@ ModuleSpardyn::AssJac(VariableSubMatrixHandler& WorkMat_,
 
 	WorkMat.Put( 7,  1,    I                                 );
 	WorkMat.Put( 7,  7,           - (I              * dCoef) );
+
 	WorkMat.Put(10,  4,    I      - (omega_ref_tild * dCoef) );
 	WorkMat.Put(10, 10,           - (I              * dCoef) );
 	
