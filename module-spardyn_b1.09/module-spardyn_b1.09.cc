@@ -539,7 +539,7 @@ ModuleSpardyn::CalcForceJac(const Vec3& vP, const Vec3& wP)
 		} else {
 			const Vec3 dzeta_dx = Wave.get_dzeta_dx();
 			SubCoef = (zeta - (x.dGet(3)-length/2.0) )/length;
-			dCsub_dx = (dzeta_dx - Vec3(0.,0., 1.))/length;
+			dCsub_dx = -Vec3(0.,0., 1.)/length;
 		}
 
 		// the vector r_GB and Jacobians 
