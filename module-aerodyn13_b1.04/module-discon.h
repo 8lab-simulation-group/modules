@@ -442,12 +442,8 @@ DisconModule::AssRes(SubVectorHandler& WorkVec,
 
 		doublereal dFSF = FSF.dGet();
 		for(int i= 0; i<numBl; i++){
-			const Vec3& BRoot_W = PitchBr[i].pBLootNode->GetWCurr();
-			const Vec3& PBear_W = PitchBr[i].pBottomNode->GetWCurr();
-			const Mat3x3& PBear_R = PitchBr[i].pBottomNode->GetRCurr();
-			doublereal PitchVel = PBear_R.MulTV(BRoot_W-PBear_W).dGet(3);
 			//PitchMoment[i] = (-PitchSpringConst*(PitchCom[i] - PitchAngle[i]) -PitchDumperConst*PitchVel);
-			PitchMoment[i] = (-PitchSpringConst*(PitchAngle[i]) -PitchDumperConst*PitchVel);
+			PitchMoment[i] = -PitchSpringConst*(PitchAngle[i]) ;
 		}
 
 	}
