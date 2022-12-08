@@ -109,6 +109,13 @@ module-aerodyn13_b1.04/*.la
 module-aerodyn13_b1.04/*.lo
 module-aerodyn13_b1.04/*.o
 
+module-aerodyn13_b1.05/.libs
+module-aerodyn13_b1.05/demo
+module-aerodyn13_b1.05/*.a
+module-aerodyn13_b1.05/*.la
+module-aerodyn13_b1.05/*.lo
+module-aerodyn13_b1.05/*.o
+
 module-mooring/.libs
 module-mooring/*.a
 module-mooring/*.la
