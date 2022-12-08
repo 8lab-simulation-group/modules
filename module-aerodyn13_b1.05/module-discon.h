@@ -39,12 +39,7 @@
 */
 #ifndef ___MODULE_DISCON_H__INCLUDED___
 #define ___MODULE_DISCON_H__INCLUDED___
-extern "C" {
 
-extern int
-__FC_DECL__(call_controller)( float *HSS_Spd, float *BlPitch_in, int *NumBl, float *ZTime, float *GenEff,  float *GenTrq, float *ElecPwr, float *BlPitchCom);
-
-}
 
 #include "mbconfig.h"           // This goes first in every *.c,*.cc file
 
@@ -58,6 +53,13 @@ __FC_DECL__(call_controller)( float *HSS_Spd, float *BlPitch_in, int *NumBl, flo
 
 #include "dataman.h"
 #include "userelem.h"
+
+extern "C" {
+
+extern int
+__FC_DECL__(call_controller)( float *HSS_Spd, float *BlPitch_in, int *NumBl, float *ZTime, float *GenEff,  float *GenTrq, float *ElecPwr, float *BlPitchCom);
+
+}
 
 class DisconModule
 : virtual public Elem, public UserDefinedElem {
@@ -124,6 +126,7 @@ private:
 	float				InitPitch[3];
 	float				PitchCom[3];			// Commanded blade pitch angel
 	doublereal			PitchMoment[3];			// Pitch Moment [N-m]
+	doublereal			demandAngle;			// (option demand angle)
 	float				GenEff;					// generator efficiency
 	doublereal			GBRatio;				// Gear Box Ratio
 	float 				GenSpeed;				// Generator Speed [rad/s]
@@ -233,6 +236,12 @@ DisconModule::DisconModule(
 	InitGenSpd		   = HP.GetReal()*GBRatio;
 	PitchSpringConst   = HP.GetReal();
 	PitchDumperConst   = HP.GetReal();
+
+	if(HP.IsKeyWord("demand angle")) {
+		demandAngle = HP.GetReal();
+	} else {
+		demandAngle = -1;
+	}
 
 	float ZTime = 0.0;
 	int NBlades = numBl;
@@ -445,8 +454,10 @@ DisconModule::AssRes(SubVectorHandler& WorkVec,
 
 		doublereal dFSF = FSF.dGet();
 		for(int i= 0; i<numBl; i++){
-			//PitchMoment[i] = (-PitchSpringConst*(PitchCom[i] - PitchAngle[i]) -PitchDumperConst*PitchVel);
-			PitchMoment[i] = -PitchSpringConst*(PitchAngle[i]) ;
+			PitchMoment[i] = -PitchSpringConst*(PitchCom[i] - PitchAngle[i]);
+			if(demandAngle!=-1) {
+				PitchMoment[i] = -PitchSpringConst*(demandAngle - PitchAngle[i]);
+			}
 		}
 
 	}
