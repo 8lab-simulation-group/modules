@@ -210,6 +210,8 @@ DisconModule::DisconModule(
 	for(int i=0; i<numBl; i++) {
 		PitchBr[i].pBLootNode = dynamic_cast<StructNode *>(pDM->ReadNode(HP, Node::STRUCTURAL));
 		PitchBr[i].pBottomNode = dynamic_cast<StructNode *>(pDM->ReadNode(HP, Node::STRUCTURAL));
+		std::cout<<" "<<PitchBr[i].pBLootNode->GetRCurr()*Vec3(1.,0.,0.);
+		std::cout<<" "<<PitchBr[i].pBottomNode->GetRCurr()*Vec3(1.,0.,0.);
 	}
 
 	// getting the generator speed and blade pitch, and initialize controller 
@@ -225,7 +227,7 @@ DisconModule::DisconModule(
 		Mat3x3 relativeR		= BlRoot_R.MulTM(PitchBr_R);			// Relative rotation Matrix from Bearing bottom to blade root
 		// Rotation angle of blade root around z-axis with respect to bearing bottom
 		// However, the pitch angle rotates clockwise about z-axis, so multiply -1
-		PitchAngle[i] = -1*atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
+		PitchAngle[i] = atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
 		InitPitch[i] = PitchAngle[i];
 	}
 
@@ -351,24 +353,6 @@ DisconModule::AssJac(VariableSubMatrixHandler& WorkMat_,
 	const VectorHandler& XCurr,
 	const VectorHandler& XPrimeCurr)
 {
-	/*
-	 *                   [ g1  ]                     [   M(y', y) ]
-	 * private data, y = [ g2  ],   formulation, r = [  -M(y', y) ],  
-	 *
-	 *  x,g,are private data of node
-	 *  v,w are private data of this element, and stored translational and rotatioal velocity
-	 *  derivation private data XPrimeCurr is store translational and rotatinal acceleration
-	 *            1        4   
-	 *          [ dF/dx  dF/dg]   1 
-	 *  dr/dy = [ dM/dx  dM/dg]   4
-	 * 
-	 * 			  1        4      
-	 *          [ dF/dx' dF/dg'] 1
-	 *  dr/dy'= [ dM/dx' dM/dg'] 4
-	 * 
-	 *  contribution to Jacobian Matrix is  J = -( dr/dy' + dCoef * dr/dy )
-	 */
-
 	WorkMat_.SetNullMatrix();
 
 #if 0
@@ -384,31 +368,38 @@ DisconModule::AssJac(VariableSubMatrixHandler& WorkMat_,
 	const integer iPositonIndex = pHSSNode->iGetFirstPositionIndex();
 	const integer iMomentumIndex = pHSSNode->iGetFirstMomentumIndex();
 
-	/*  
-	 * set indices to submatrix WrokMat
-	 *    [ x : position index of node + 1~3]  <= private data of node
-	 * y =[ g : position index of node + 4~6] 
-	 * 
-	 *    [ r1 : momentum index of node + 1~3] Force imposed to the node
-	 * r =[ r2 : momentum index of node + 4~6] Torque imposed to the node
-	 * 
-	 *            x   g   (index)     
-	 *           [      ] r1
-	 * WorkMat = [      ] r2
-	 */ 
+	for(int iBld = 0; iBld < numBl; iBld++) {
+		const Mat3x3 R_root = PitchBr[iBld].pBLootNode->GetRCurr();
+		const Mat3x3 R_bottom = PitchBr[iBld].pBottomNode->GetRCurr();
+		const Mat3x3 R_root_ref = PitchBr[iBld].pBLootNode->GetRRef();
+		const Mat3x3 R_bottom_ref = PitchBr[iBld].pBottomNode->GetRRef();
 
-	for(int iCnt = 1; iCnt<=6; iCnt++){
-		WorkMat.PutRowIndex(iCnt, iMomentumIndex + iCnt);
-		WorkMat.PutColIndex(iCnt, iPositonIndex  + iCnt);
+		const Vec3 e1 = Vec3(1.,0.,0.);
+		const Vec3 e2 = Vec3(0.,1.,0.);
+		const Vec3 e3 = Vec3(0.,0.,1.);
+
+		doublereal R12 =( R_root.MulTM(R_bottom) * e1 ).Dot(e2);
+		doublereal R11 =( R_root.MulTM(R_bottom) * e1 ).Dot(e1);
+
+		const Vec3 dR12_dg1 = Mat3x3(MatCross, R_root_ref.MulTM(R_bottom) *e1).MulTV(e2);
+		const Vec3 dR11_dg1 = Mat3x3(MatCross, R_root_ref.MulTM(R_bottom) *e1).MulTV(e1);
+
+		const Vec3 dR12_dg2 = (R_root.MulTM( Mat3x3(MatCross, R_bottom_ref * e1))*-1.0).MulTV(e2);
+		const Vec3 dR11_dg2 = (R_root.MulTM( Mat3x3(MatCross, R_bottom_ref * e1))*-1.0).MulTV(e1);
+
+		// temporary variable tan = R12/R11
+		doublereal tan = R12/R11;
+
+		const Vec3 dtan_dg1 =  dR12_dg1 *1./(R11*R11)  -  dR11_dg1 * R12/R11;
+		const Vec3 dtan_dg2 =  dR12_dg2 *1./(R11*R11)  -  dR11_dg2 * R12/R11;
+
+		doublereal theta = std::atan(tan);
+		
+		const Vec3 dtheta_dg1 = dtan_dg1 * (1./(1. + std::pow(theta, 2)));
+		const Vec3 dtheta_dg2 = dtan_dg2 * (1./(1. + std::pow(theta, 2)));
+
 	}
-
-	WorkMat.Put( 1,  1, -dF_dxP   - (dF_dx          * dCoef) );
-	WorkMat.Put( 1,  4, -dF_dgP   - (dF_dg          * dCoef) );
-
-	WorkMat.Put( 4,  1, -dM_dxP   - (dM_dx          * dCoef) );
-	WorkMat.Put( 4,  4, -dM_dgP   - (dM_dg          * dCoef) );
 #endif
-
 	return WorkMat_;
 }
 
@@ -439,7 +430,7 @@ DisconModule::AssRes(SubVectorHandler& WorkVec,
 			Mat3x3 relativeR		= BlRoot_R.MulTM(PitchBr_R);			// Relative rotation Matrix from Bearing bottom to blade root
 			// Rotation angle of blade root around z-axis with respect to bearing bottom
 			// However, the pitch angle rotates clockwise about z-axis, so multiply -1
-			PitchAngle[i] = -1*atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
+			PitchAngle[i] = atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
 		}
 
 		int nbladesf = numBl;
