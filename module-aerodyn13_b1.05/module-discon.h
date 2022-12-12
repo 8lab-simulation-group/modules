@@ -210,8 +210,6 @@ DisconModule::DisconModule(
 	for(int i=0; i<numBl; i++) {
 		PitchBr[i].pBLootNode = dynamic_cast<StructNode *>(pDM->ReadNode(HP, Node::STRUCTURAL));
 		PitchBr[i].pBottomNode = dynamic_cast<StructNode *>(pDM->ReadNode(HP, Node::STRUCTURAL));
-		std::cout<<" "<<PitchBr[i].pBLootNode->GetRCurr()*Vec3(1.,0.,0.);
-		std::cout<<" "<<PitchBr[i].pBottomNode->GetRCurr()*Vec3(1.,0.,0.);
 	}
 
 	// getting the generator speed and blade pitch, and initialize controller 
@@ -227,7 +225,7 @@ DisconModule::DisconModule(
 		Mat3x3 relativeR		= BlRoot_R.MulTM(PitchBr_R);			// Relative rotation Matrix from Bearing bottom to blade root
 		// Rotation angle of blade root around z-axis with respect to bearing bottom
 		// However, the pitch angle rotates clockwise about z-axis, so multiply -1
-		PitchAngle[i] = atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
+		PitchAngle[i] = -1*atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
 		InitPitch[i] = PitchAngle[i];
 	}
 
@@ -430,7 +428,7 @@ DisconModule::AssRes(SubVectorHandler& WorkVec,
 			Mat3x3 relativeR		= BlRoot_R.MulTM(PitchBr_R);			// Relative rotation Matrix from Bearing bottom to blade root
 			// Rotation angle of blade root around z-axis with respect to bearing bottom
 			// However, the pitch angle rotates clockwise about z-axis, so multiply -1
-			PitchAngle[i] = atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
+			PitchAngle[i] = -1*atan(relativeR.dGet(1,2)/relativeR.dGet(1,1)); 
 		}
 
 		int nbladesf = numBl;

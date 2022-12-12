@@ -538,8 +538,6 @@ SUBROUTINE call_controller(HSS_Spd, BlPitch_in, NumBl, ZTime,  GenEff, GenTrq, E
 
     HorWindV = SQRT(HHWndVec(1)*HHWndVec(1) + HHWndVec(2)*HHWndVec(2))
 
-   
-
    ! Compute the electric generator power:
    ! The generator efficiency is either additive for motoring,
    !   or subtractive for generating power.
