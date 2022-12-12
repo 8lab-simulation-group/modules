@@ -239,7 +239,7 @@ DisconModule::DisconModule(
 	PitchSpringConst   = HP.GetReal();
 	PitchDumperConst   = HP.GetReal();
 
-	if(HP.IsKeyWord("demand angle")) {
+	if(HP.IsKeyWord("demand" "angle")) {
 		demandAngle = HP.GetReal();
 	} else {
 		demandAngle = -1;
