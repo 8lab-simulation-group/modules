@@ -140,3 +140,9 @@ module-spardyn_b1.09/*.a
 module-spardyn_b1.09/*.la
 module-spardyn_b1.09/*.lo
 module-spardyn_b1.09/*.o
+
+module-spardyn_b1.10/.libs
+module-spardyn_b1.10/*.a
+module-spardyn_b1.10/*.la
+module-spardyn_b1.10/*.lo
+module-spardyn_b1.10/*.o
