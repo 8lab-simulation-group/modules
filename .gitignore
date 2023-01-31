@@ -41,8 +41,7 @@ module-aerodyn/
 module-eu2phi/                      
 module-morison3_1/        
 module-tclpgin/
-module-aerodyn13/             
-module-field/                       
+module-aerodyn13/                        
 module-morison4/          
 module-template/
 module-aerodyn13-2/           
