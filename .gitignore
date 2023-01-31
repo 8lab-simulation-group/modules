@@ -123,6 +123,13 @@ module-aerodyn13_b1.08/*.la
 module-aerodyn13_b1.08/*.lo
 module-aerodyn13_b1.08/*.o
 
+module-aerodyn13_b1.09/.libs
+module-aerodyn13_b1.09/demo
+module-aerodyn13_b1.09/*.a
+module-aerodyn13_b1.09/*.la
+module-aerodyn13_b1.09/*.lo
+module-aerodyn13_b1.09/*.o
+
 module-mooring/.libs
 module-mooring/*.a
 module-mooring/*.la
@@ -146,3 +153,9 @@ module-spardyn_b1.10/*.a
 module-spardyn_b1.10/*.la
 module-spardyn_b1.10/*.lo
 module-spardyn_b1.10/*.o
+
+module-field/.libs
+module-field/*.a
+module-field/*.la
+module-field/*.lo
+module-field/*.o
